@@ -20,7 +20,8 @@ function clampParticipants(input: string[]) {
 }
 
 function validateCreateInput(input: CreateSessionInput) {
-  if (!getModelById(input.orchestratorModel)) {
+  const orchestrator = getModelById(input.orchestratorModel);
+  if (!orchestrator || (orchestrator.kind !== "both" && orchestrator.kind !== "orchestrator")) {
     throw new Error("INVALID_ORCHESTRATOR_MODEL");
   }
 
@@ -28,6 +29,15 @@ function validateCreateInput(input: CreateSessionInput) {
 
   if (participants.length < MIN_PARTICIPANTS || participants.length > MAX_PARTICIPANTS) {
     throw new Error("INVALID_PARTICIPANT_COUNT");
+  }
+
+  const hasInvalidParticipant = participants.some((participantId) => {
+    const model = getModelById(participantId);
+    return !model || (model.kind !== "both" && model.kind !== "participant");
+  });
+
+  if (hasInvalidParticipant) {
+    throw new Error("INVALID_PARTICIPANT_MODEL");
   }
 
   return {
