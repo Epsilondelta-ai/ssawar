@@ -2,7 +2,7 @@ import { MessageRole, MessageStatus, Prisma, SessionLifecycleState, SessionTitle
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ORCHESTRATOR_MODEL, DEFAULT_PARTICIPANTS, SUPPORTED_MODELS, getModelById } from "@/lib/models";
 
-type CreateSessionInput = {
+export type CreateSessionInput = {
   orchestratorModel: string;
   participantModels: string[];
   visibility?: "private" | "link" | "public";
@@ -19,7 +19,7 @@ function clampParticipants(input: string[]) {
   return unique.slice(0, MAX_PARTICIPANTS);
 }
 
-function validateCreateInput(input: CreateSessionInput) {
+export function normalizeCreateSessionInput(input: CreateSessionInput) {
   const orchestrator = getModelById(input.orchestratorModel);
   if (!orchestrator || (orchestrator.kind !== "both" && orchestrator.kind !== "orchestrator")) {
     throw new Error("INVALID_ORCHESTRATOR_MODEL");
@@ -54,7 +54,7 @@ function sentenceCase(input: string) {
   return input.charAt(0).toUpperCase() + input.slice(1);
 }
 
-function generateTitleFromContent(content: string) {
+export function generateTitleFromContent(content: string) {
   const normalized = content.replace(/\s+/g, " ").trim();
 
   if (!normalized) {
@@ -86,7 +86,7 @@ function participantReply(modelId: string, content: string, index: number) {
 }
 
 export async function createSession(input: Partial<CreateSessionInput>) {
-  const validated = validateCreateInput({
+  const validated = normalizeCreateSessionInput({
     orchestratorModel: input.orchestratorModel ?? DEFAULT_ORCHESTRATOR_MODEL,
     participantModels: input.participantModels ?? DEFAULT_PARTICIPANTS,
     visibility: input.visibility,

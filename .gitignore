@@ -9,6 +9,10 @@ prisma/dev.db
 prisma/dev.db-journal
 prisma/prisma/dev.db
 prisma/prisma/dev.db-journal
+prisma/test.db
+prisma/test.db-journal
+test-results
+playwright-report
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:e2e": "DATABASE_URL=\"file:./test.db\" npx prisma db push --accept-data-loss && playwright test"
   },
   "repository": {
     "type": "git",
@@ -30,12 +33,18 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^4.1.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.1",
+    "jsdom": "^29.0.1",
     "prisma": "^6.16.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.1"
   }
 }
