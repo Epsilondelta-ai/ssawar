@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DEFAULT_ORCHESTRATOR_MODEL, DEFAULT_PARTICIPANTS, SUPPORTED_MODELS, getModelById } from "@/lib/models";
 
 const suggestedLineups = [
@@ -17,7 +16,6 @@ function lineupLabel(models: string[]) {
 }
 
 export function HomeShell() {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +57,23 @@ export function HomeShell() {
         }),
       });
 
-      const payload = (await response.json()) as { session?: { id: string }; error?: { message: string } };
+      const payload = (await response.json()) as {
+        session?: { id: string; userId?: string | null };
+        viewerId?: string;
+        error?: { message: string };
+      };
 
       if (!response.ok || !payload.session) {
         throw new Error(payload.error?.message ?? "SESSION_CREATE_FAILED");
       }
 
-      router.push(`/sessions/${payload.session.id}`);
+      const viewerId = payload.viewerId ?? payload.session.userId;
+      if (viewerId) {
+        document.cookie = `ssawar_viewer=${viewerId}; path=/; samesite=lax`;
+        window.localStorage.setItem("ssawar_viewer", viewerId);
+      }
+
+      window.location.assign(`/sessions/${payload.session.id}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "SESSION_CREATE_FAILED");
       setIsCreating(false);

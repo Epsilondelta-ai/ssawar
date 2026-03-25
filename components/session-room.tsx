@@ -8,6 +8,7 @@ type Session = {
   titleState: string;
   lifecycleState: string;
   orchestratorModel: string;
+  userId?: string | null;
   participants: Array<{
     id: string;
     modelName: string;
@@ -56,6 +57,7 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     () => session.participants.map((participant) => participant.displayName).join(", "),
     [session.participants],
   );
+  const viewerId = session.userId ?? (typeof window === "undefined" ? null : window.localStorage.getItem("ssawar_viewer"));
 
   function mergeMessages(current: Message[], incoming: Message[]) {
     const map = new Map(current.map((message) => [message.id, message]));
@@ -69,7 +71,8 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
   }
 
   useEffect(() => {
-    const source = new EventSource(`/api/sessions/${session.id}/events`);
+    const search = viewerId ? `?viewerId=${encodeURIComponent(viewerId)}` : "";
+    const source = new EventSource(`/api/sessions/${session.id}/events${search}`);
 
     source.onmessage = (event) => {
       const payload = JSON.parse(event.data) as
@@ -97,7 +100,7 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     return () => {
       source.close();
     };
-  }, [session.id]);
+  }, [session.id, viewerId]);
 
   async function sendMessage() {
     const content = draft.trim();
@@ -111,7 +114,10 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     try {
       const response = await fetch(`/api/sessions/${session.id}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(viewerId ? { "x-ssawar-viewer": viewerId } : {}),
+        },
         body: JSON.stringify({ content }),
       });
 
@@ -151,7 +157,10 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     try {
       const response = await fetch(`/api/sessions/${session.id}/title`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(viewerId ? { "x-ssawar-viewer": viewerId } : {}),
+        },
         body: JSON.stringify({ title }),
       });
 
@@ -177,7 +186,10 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     try {
       const response = await fetch(`/api/sessions/${session.id}/end`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(viewerId ? { "x-ssawar-viewer": viewerId } : {}),
+        },
         body: JSON.stringify({ reason: "user_requested" }),
       });
 

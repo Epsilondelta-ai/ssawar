@@ -11,6 +11,7 @@ export type CreateSessionInput = {
   maxTurns?: number;
   autoExtend?: boolean;
   stopPolicy?: string;
+  userId?: string | null;
 };
 
 const MAX_PARTICIPANTS = 16;
@@ -49,6 +50,7 @@ export function normalizeCreateSessionInput(input: CreateSessionInput) {
     maxTurns: input.maxTurns ?? 6,
     autoExtend: input.autoExtend ?? true,
     stopPolicy: input.stopPolicy ?? "default",
+    userId: input.userId ?? null,
   };
 }
 
@@ -133,6 +135,7 @@ export async function createSession(input: Partial<CreateSessionInput>) {
       titleState: SessionTitleState.untitled,
       lifecycleState: SessionLifecycleState.idle,
       orchestratorModel: validated.orchestratorModel,
+      userId: validated.userId,
       visibility: validated.visibility,
       maxTurns: validated.maxTurns,
       autoExtend: validated.autoExtend,

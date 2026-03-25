@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { endSession } from "@/lib/session-service";
+import { endSession, getSession } from "@/lib/session-service";
 
 export async function POST(
   request: NextRequest,
@@ -8,6 +8,10 @@ export async function POST(
   const { sessionId } = await params;
 
   try {
+    const currentSession = await getSession(sessionId);
+    if (!currentSession) {
+      return NextResponse.json({ error: { code: "SESSION_NOT_FOUND", message: "SESSION_NOT_FOUND" } }, { status: 404 });
+    }
     const body = (await request.json().catch(() => ({}))) as { reason?: string };
     const result = await endSession(sessionId, body.reason ?? "user_requested");
     return NextResponse.json(result);

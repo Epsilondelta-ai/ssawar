@@ -1,10 +1,17 @@
+import { NextRequest } from "next/server";
 import { subscribeSessionEvent } from "@/lib/session-events";
+import { getSession } from "@/lib/session-service";
 
 export async function GET(
-  _request: Request,
+  _request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await params;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return new Response("not-found", { status: 404 });
+  }
 
   const stream = new ReadableStream({
     start(controller) {

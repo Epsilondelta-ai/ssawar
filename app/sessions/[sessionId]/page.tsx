@@ -34,6 +34,7 @@ export default async function SessionPage({
         titleState: session.titleState,
         lifecycleState: session.lifecycleState,
         orchestratorModel: session.orchestratorModel,
+        userId: session.userId,
         participants: session.participants.map((participant) => ({
           id: participant.id,
           modelName: participant.modelName,

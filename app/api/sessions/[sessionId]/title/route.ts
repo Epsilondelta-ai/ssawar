@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { renameSession } from "@/lib/session-service";
+import { getSession, renameSession } from "@/lib/session-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -8,6 +8,10 @@ export async function PATCH(
   const { sessionId } = await params;
 
   try {
+    const currentSession = await getSession(sessionId);
+    if (!currentSession) {
+      return NextResponse.json({ error: { code: "SESSION_NOT_FOUND", message: "SESSION_NOT_FOUND" } }, { status: 404 });
+    }
     const body = (await request.json()) as { title?: string };
     const session = await renameSession(sessionId, body.title ?? "");
     return NextResponse.json({ session });
