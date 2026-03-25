@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionLifecycleState {
+  created
+  idle
+  running
+  awaiting_model
+  summarizing
+  finished
+  errored
+}
+
+enum SessionTitleState {
+  untitled
+  auto_generated
+  user_edited
+}
+
+enum SessionVisibility {
+  private
+  link
+  public
+}
+
+enum MessageRole {
+  user
+  orchestrator
+  participant
+  system
+}
+
+enum MessageStatus {
+  pending
+  streaming
+  completed
+  failed
+  timed_out
+}
+
+model Session {
+  id                String                @id @default(uuid())
+  title             String                @default("Untitled")
+  titleState        SessionTitleState     @default(untitled)
+  lifecycleState    SessionLifecycleState @default(created)
+  orchestratorModel String
+  visibility        SessionVisibility     @default(private)
+  maxTurns          Int                   @default(6)
+  autoExtend        Boolean               @default(true)
+  stopPolicy        String                @default("default")
+  stopReason        String?
+  currentTurn       Int                   @default(0)
+  userId            String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  finishedAt        DateTime?
+  deletedAt         DateTime?
+
+  participants      SessionParticipant[]
+  messages          SessionMessage[]
+  summary           SessionSummary?
+  events            SessionEvent[]
+  titleHistory      SessionTitleHistory[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([visibility, updatedAt(sort: Desc)])
+  @@index([lifecycleState, updatedAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model SessionParticipant {
+  id            String   @id @default(uuid())
+  sessionId     String
+  modelName     String
+  displayName   String
+  position      Int
+  isActive      Boolean  @default(true)
+  joinedAt      DateTime @default(now())
+  lastMessageAt DateTime?
+
+  session       Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, position])
+  @@index([sessionId, position(sort: Asc)])
+  @@index([sessionId, isActive])
+}
+
+model SessionMessage {
+  id                 String         @id @default(uuid())
+  sessionId          String
+  role               MessageRole
+  messageStatus      MessageStatus  @default(completed)
+  speakerModel       String?
+  speakerLabel       String?
+  content            String
+  turnIndex          Int            @default(0)
+  sequenceInTurn     Int            @default(0)
+  parentMessageId    String?
+  targetModel        String?
+  responseMs         Int?
+  tokenCountEstimate Int?
+  metadata           Json
+  createdAt          DateTime       @default(now())
+
+  session            Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  parentMessage      SessionMessage? @relation("MessageThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  childMessages      SessionMessage[] @relation("MessageThread")
+
+  @@index([sessionId, createdAt(sort: Asc)])
+  @@index([sessionId, turnIndex(sort: Asc), sequenceInTurn(sort: Asc)])
+  @@index([sessionId, role])
+}
+
+model SessionSummary {
+  id               String   @id @default(uuid())
+  sessionId        String   @unique
+  headline         String
+  bullets          Json
+  highlights       Json
+  generatedByModel String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt(sort: Desc)])
+}
+
+model SessionEvent {
+  id        String   @id @default(uuid())
+  sessionId String
+  eventType String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Asc)])
+  @@index([eventType, createdAt(sort: Desc)])
+}
+
+model SessionTitleHistory {
+  id        String   @id @default(uuid())
+  sessionId String
+  oldTitle  String?
+  newTitle  String
+  source    String
+  createdAt DateTime @default(now())
+
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
