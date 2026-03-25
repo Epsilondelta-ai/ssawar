@@ -24,6 +24,11 @@ export function HomeShell() {
   const [orchestratorModel, setOrchestratorModel] = useState(DEFAULT_ORCHESTRATOR_MODEL);
   const [participants, setParticipants] = useState<string[]>(DEFAULT_PARTICIPANTS);
   const [visibility, setVisibility] = useState<"private" | "link" | "public">("private");
+  const [providerStatus] = useState(() => ({
+    openai: Boolean(process.env.NEXT_PUBLIC_OPENAI_READY),
+    anthropic: Boolean(process.env.NEXT_PUBLIC_ANTHROPIC_READY),
+    google: Boolean(process.env.NEXT_PUBLIC_GOOGLE_READY),
+  }));
 
   const orchestrators = useMemo(
     () => SUPPORTED_MODELS.filter((model) => model.kind === "both" || model.kind === "orchestrator"),
@@ -131,6 +136,16 @@ export function HomeShell() {
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="showcase-panel">
+            <h2>Provider Status</h2>
+            <div className="chip-row">
+              <span className={providerStatus.openai ? "tag-chip tag-chip-live" : "tag-chip"}>OpenAI</span>
+              <span className={providerStatus.anthropic ? "tag-chip tag-chip-live" : "tag-chip"}>Anthropic</span>
+              <span className={providerStatus.google ? "tag-chip tag-chip-live" : "tag-chip"}>Google</span>
+            </div>
+            <p className="field-help">키가 없으면 mock 응답으로 fallback 된다.</p>
           </section>
         </div>
       </section>

@@ -1,6 +1,7 @@
 import { MessageRole, MessageStatus, Prisma, SessionLifecycleState, SessionTitleState } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ORCHESTRATOR_MODEL, DEFAULT_PARTICIPANTS, SUPPORTED_MODELS, getModelById } from "@/lib/models";
+import { generateModelText, providerAvailability } from "@/lib/llm-providers";
 
 export type CreateSessionInput = {
   orchestratorModel: string;
@@ -85,6 +86,36 @@ function participantReply(modelId: string, content: string, index: number) {
   return templates[index % templates.length];
 }
 
+async function buildOrchestratorMessage(modelId: string, content: string) {
+  const generated = await generateModelText({
+    modelId,
+    system: "너는 ssawar의 오케스트레이터다. 짧고 강하게 장면을 열고, 참가자들이 다른 관점으로 부딪치게 만든다.",
+    prompt: content || "빈 세션이 시작됐다. 첫 화두를 짧게 잡아라.",
+  }).catch(() => null);
+
+  return generated ?? orchestratorIntro(content);
+}
+
+async function buildParticipantMessage(modelId: string, content: string, index: number) {
+  const generated = await generateModelText({
+    modelId,
+    system: "너는 멀티 AI 세션의 참가자다. 짧고 선명하게 자기 관점을 내고, 필요하면 다른 참가자를 겨냥해 반박하라.",
+    prompt: content || "빈 세션이 시작됐다. 첫 화두를 스스로 만들고 반응하라.",
+  }).catch(() => null);
+
+  return generated ?? participantReply(modelId, content, index);
+}
+
+async function buildSummary(headlineSeed: string, modelId: string, bullets: string[]) {
+  const generated = await generateModelText({
+    modelId,
+    system: "너는 대화를 요약하는 오케스트레이터다. 한 줄 headline과 3개 bullet 요약을 만든다.",
+    prompt: `${headlineSeed}\n\n${bullets.join("\n")}`,
+  }).catch(() => null);
+
+  return generated;
+}
+
 export async function createSession(input: Partial<CreateSessionInput>) {
   const validated = normalizeCreateSessionInput({
     orchestratorModel: input.orchestratorModel ?? DEFAULT_ORCHESTRATOR_MODEL,
@@ -118,6 +149,7 @@ export async function createSession(input: Partial<CreateSessionInput>) {
           payload: {
             orchestratorModel: validated.orchestratorModel,
             participantCount: validated.participantModels.length,
+            providerAvailability: providerAvailability(),
           },
         },
       },
@@ -225,6 +257,8 @@ export async function appendUserMessage(sessionId: string, content: string) {
       },
     });
 
+    const orchestratorMessageContent = await buildOrchestratorMessage(session.orchestratorModel, trimmed);
+
     const orchestratorMessage = await tx.sessionMessage.create({
       data: {
         sessionId,
@@ -232,7 +266,7 @@ export async function appendUserMessage(sessionId: string, content: string) {
         messageStatus: MessageStatus.completed,
         speakerModel: session.orchestratorModel,
         speakerLabel: getModelById(session.orchestratorModel)?.label ?? session.orchestratorModel,
-        content: orchestratorIntro(trimmed),
+        content: orchestratorMessageContent,
         turnIndex: nextTurn,
         sequenceInTurn: nextSequenceBase + 1,
         metadata: {},
@@ -241,6 +275,7 @@ export async function appendUserMessage(sessionId: string, content: string) {
 
     const participantMessages = [];
     for (const [index, participant] of session.participants.entries()) {
+      const participantContent = await buildParticipantMessage(participant.modelName, trimmed, index);
       const created = await tx.sessionMessage.create({
         data: {
           sessionId,
@@ -249,7 +284,7 @@ export async function appendUserMessage(sessionId: string, content: string) {
           speakerModel: participant.modelName,
           speakerLabel: participant.displayName,
           targetModel: session.participants[(index + 1) % session.participants.length]?.modelName ?? null,
-          content: participantReply(participant.modelName, trimmed, index),
+          content: participantContent,
           turnIndex: nextTurn,
           sequenceInTurn: nextSequenceBase + 2 + index,
           metadata: {},
@@ -325,6 +360,19 @@ export async function endSession(sessionId: string, reason = "user_requested") {
     session.messages.filter((message) => message.role === MessageRole.user).at(-1)?.content ??
     "대화가 시작되기 전에 세션이 종료되었다.";
 
+  const summaryText = await buildSummary(
+    latestUserPrompt,
+    session.orchestratorModel,
+    session.messages.slice(-5).map((message) => `${message.role}: ${message.content}`),
+  );
+
+  const parsedBullets =
+    summaryText?.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 3) ?? [
+      "오케스트레이터가 흐름을 정리했다.",
+      "참가 AI들이 서로 다른 관점에서 반응했다.",
+      "하이라이트는 최근 participant 메시지에서 추출됐다.",
+    ];
+
   return prisma.$transaction(async (tx) => {
     const updatedSession = await tx.session.update({
       where: { id: sessionId },
@@ -346,21 +394,13 @@ export async function endSession(sessionId: string, reason = "user_requested") {
       create: {
         sessionId,
         headline: `${latestUserPrompt.slice(0, 60)}에 대한 세션이 마무리됐다.`,
-        bullets: [
-          "오케스트레이터가 흐름을 정리했다.",
-          "참가 AI들이 서로 다른 관점에서 반응했다.",
-          "하이라이트는 최근 participant 메시지에서 추출됐다.",
-        ] satisfies Prisma.InputJsonValue,
+        bullets: parsedBullets satisfies Prisma.InputJsonValue,
         highlights: participantHighlights satisfies Prisma.InputJsonValue,
         generatedByModel: session.orchestratorModel,
       },
       update: {
         headline: `${latestUserPrompt.slice(0, 60)}에 대한 세션이 마무리됐다.`,
-        bullets: [
-          "오케스트레이터가 흐름을 정리했다.",
-          "참가 AI들이 서로 다른 관점에서 반응했다.",
-          "하이라이트는 최근 participant 메시지에서 추출됐다.",
-        ] satisfies Prisma.InputJsonValue,
+        bullets: parsedBullets satisfies Prisma.InputJsonValue,
         highlights: participantHighlights satisfies Prisma.InputJsonValue,
         generatedByModel: session.orchestratorModel,
       },
