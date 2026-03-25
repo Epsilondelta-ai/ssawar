@@ -160,6 +160,13 @@ button {
   margin-top: 0;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
 .chip-row {
   display: flex;
   gap: 10px;
@@ -187,6 +194,30 @@ button {
 .lineup-list {
   display: grid;
   gap: 10px;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-list-full {
+  margin-top: 20px;
+}
+
+.history-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.history-card span,
+.history-card small,
+.inline-link {
+  color: var(--muted);
 }
 
 .lineup-card {

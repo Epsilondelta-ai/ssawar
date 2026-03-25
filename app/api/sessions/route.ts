@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { attachViewerCookie, ensureViewerId } from "@/lib/api-auth";
-import { createSession } from "@/lib/session-service";
+import { attachViewerCookie, ensureViewerId, readViewerId } from "@/lib/api-auth";
+import { createSession, listSessionsForUser } from "@/lib/session-service";
+
+export async function GET(request: NextRequest) {
+  const viewerId = readViewerId(request);
+  const sessions = await listSessionsForUser(viewerId);
+  return NextResponse.json({ sessions });
+}
 
 export async function POST(request: NextRequest) {
   try {

@@ -178,6 +178,28 @@ export async function getSession(sessionId: string) {
   });
 }
 
+export async function listSessionsForUser(userId: string | null) {
+  if (!userId) {
+    return [];
+  }
+
+  return prisma.session.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+    },
+    include: {
+      summary: true,
+      participants: {
+        orderBy: { position: "asc" },
+        take: 4,
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+  });
+}
+
 export async function listMessages(sessionId: string) {
   return prisma.sessionMessage.findMany({
     where: { sessionId },

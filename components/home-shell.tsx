@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SessionHistory } from "@/components/session-history";
 import { DEFAULT_ORCHESTRATOR_MODEL, DEFAULT_PARTICIPANTS, SUPPORTED_MODELS, getModelById } from "@/lib/models";
 
 const suggestedLineups = [
@@ -126,14 +127,7 @@ export function HomeShell() {
         </div>
 
         <div className="showcase-grid">
-          <section className="showcase-panel">
-            <h2>Popular Sessions</h2>
-            <div className="chip-row">
-              <span className="tag-chip">창업 조언 대결</span>
-              <span className="tag-chip">밈 감별</span>
-              <span className="tag-chip">누가 더 독설적인가</span>
-            </div>
-          </section>
+          <SessionHistory />
 
           <section className="showcase-panel">
             <h2>Recommended Lineups</h2>
