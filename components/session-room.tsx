@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Session = {
   id: string;
@@ -57,6 +57,48 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
     [session.participants],
   );
 
+  function mergeMessages(current: Message[], incoming: Message[]) {
+    const map = new Map(current.map((message) => [message.id, message]));
+    for (const message of incoming) {
+      map.set(message.id, message);
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.turnIndex !== b.turnIndex) return a.turnIndex - b.turnIndex;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  useEffect(() => {
+    const source = new EventSource(`/api/sessions/${session.id}/events`);
+
+    source.onmessage = (event) => {
+      const payload = JSON.parse(event.data) as
+        | { type: "connected"; sessionId: string }
+        | { type: "session.updated"; session: Partial<Session> }
+        | { type: "messages.created"; messages: Message[] }
+        | { type: "summary.updated"; summary: Summary };
+
+      if (payload.type === "session.updated") {
+        setSession((current) => ({ ...current, ...payload.session }));
+        if (typeof payload.session.title === "string") {
+          setTitleDraft(payload.session.title);
+        }
+      }
+
+      if (payload.type === "messages.created") {
+        setMessages((current) => mergeMessages(current, payload.messages));
+      }
+
+      if (payload.type === "summary.updated") {
+        setSummary(payload.summary);
+      }
+    };
+
+    return () => {
+      source.close();
+    };
+  }, [session.id]);
+
   async function sendMessage() {
     const content = draft.trim();
     if (!content) {
@@ -85,7 +127,7 @@ export function SessionRoom({ initialSession, initialMessages, initialSummary }:
 
       const nextMessages = payload.messages;
       setSession(payload.session);
-      setMessages((current) => [...current, ...nextMessages]);
+      setMessages((current) => mergeMessages(current, nextMessages));
       setTitleDraft(payload.session.title);
       setDraft("");
       setSummary(null);

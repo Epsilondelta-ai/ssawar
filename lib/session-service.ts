@@ -2,6 +2,7 @@ import { MessageRole, MessageStatus, Prisma, SessionLifecycleState, SessionTitle
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ORCHESTRATOR_MODEL, DEFAULT_PARTICIPANTS, SUPPORTED_MODELS, getModelById } from "@/lib/models";
 import { generateModelText, providerAvailability } from "@/lib/llm-providers";
+import { publishSessionEvent } from "@/lib/session-events";
 
 export type CreateSessionInput = {
   orchestratorModel: string;
@@ -197,7 +198,7 @@ export async function renameSession(sessionId: string, title: string) {
     throw new Error("SESSION_NOT_FOUND");
   }
 
-  return prisma.session.update({
+  const updated = await prisma.session.update({
     where: { id: sessionId },
     data: {
       title: trimmed,
@@ -211,6 +212,18 @@ export async function renameSession(sessionId: string, title: string) {
       },
     },
   });
+
+  publishSessionEvent(sessionId, {
+    type: "session.updated",
+    session: {
+      id: updated.id,
+      title: updated.title,
+      titleState: updated.titleState,
+      lifecycleState: updated.lifecycleState,
+    },
+  });
+
+  return updated;
 }
 
 export async function appendUserMessage(sessionId: string, content: string) {
@@ -326,10 +339,34 @@ export async function appendUserMessage(sessionId: string, content: string) {
       },
     });
 
-    return {
+    const result = {
       session: updatedSession,
       messages: [userMessage, orchestratorMessage, ...participantMessages],
     };
+
+    publishSessionEvent(sessionId, {
+      type: "session.updated",
+      session: {
+        id: updatedSession.id,
+        title: updatedSession.title,
+        titleState: updatedSession.titleState,
+        lifecycleState: updatedSession.lifecycleState,
+        currentTurn: updatedSession.currentTurn,
+      },
+    });
+    publishSessionEvent(sessionId, {
+      type: "messages.created",
+      messages: result.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        speakerModel: message.speakerModel,
+        speakerLabel: message.speakerLabel,
+        content: message.content,
+        turnIndex: message.turnIndex,
+      })),
+    });
+
+    return result;
   });
 }
 
@@ -406,7 +443,29 @@ export async function endSession(sessionId: string, reason = "user_requested") {
       },
     });
 
-    return { session: updatedSession, summary };
+    const result = { session: updatedSession, summary };
+
+    publishSessionEvent(sessionId, {
+      type: "session.updated",
+      session: {
+        id: updatedSession.id,
+        title: updatedSession.title,
+        titleState: updatedSession.titleState,
+        lifecycleState: updatedSession.lifecycleState,
+        stopReason: updatedSession.stopReason,
+      },
+    });
+    publishSessionEvent(sessionId, {
+      type: "summary.updated",
+      summary: {
+        headline: summary.headline,
+        bullets: summary.bullets,
+        highlights: summary.highlights,
+        stopReason: updatedSession.stopReason,
+      },
+    });
+
+    return result;
   });
 }
 
