@@ -6,10 +6,12 @@ type GenerateTextInput = {
   system?: string;
 };
 
-function getVendorApiKey(vendor: "openai" | "anthropic" | "google" | "mock") {
+function getVendorApiKey(vendor: "openai" | "anthropic" | "google" | "xai" | "deepseek" | "mock") {
   if (vendor === "openai") return process.env.OPENAI_API_KEY;
   if (vendor === "anthropic") return process.env.ANTHROPIC_API_KEY;
   if (vendor === "google") return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (vendor === "xai") return process.env.XAI_API_KEY;
+  if (vendor === "deepseek") return process.env.DEEPSEEK_API_KEY;
   return undefined;
 }
 
@@ -122,6 +124,72 @@ async function generateWithGemini({ modelId, prompt, system }: GenerateTextInput
   return extractGeminiText(await response.json());
 }
 
+async function generateWithOpenAICompatible({
+  modelId,
+  prompt,
+  system,
+  apiKey,
+  baseUrl,
+}: GenerateTextInput & { apiKey: string; baseUrl: string }) {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: getProviderModelName(modelId),
+      messages: [
+        ...(system
+          ? [
+              {
+                role: "system",
+                content: system,
+              },
+            ]
+          : []),
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: 300,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`COMPAT_${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  return payload.choices?.[0]?.message?.content?.trim() || null;
+}
+
+async function generateWithXAI(input: GenerateTextInput) {
+  const apiKey = getVendorApiKey("xai");
+  if (!apiKey) return null;
+
+  return generateWithOpenAICompatible({
+    ...input,
+    apiKey,
+    baseUrl: "https://api.x.ai/v1",
+  });
+}
+
+async function generateWithDeepSeek(input: GenerateTextInput) {
+  const apiKey = getVendorApiKey("deepseek");
+  if (!apiKey) return null;
+
+  return generateWithOpenAICompatible({
+    ...input,
+    apiKey,
+    baseUrl: "https://api.deepseek.com",
+  });
+}
+
 export async function generateModelText(input: GenerateTextInput) {
   const model = getModelById(input.modelId);
   if (!model || model.vendor === "mock") {
@@ -140,6 +208,14 @@ export async function generateModelText(input: GenerateTextInput) {
     return generateWithGemini(input);
   }
 
+  if (model.vendor === "xai") {
+    return generateWithXAI(input);
+  }
+
+  if (model.vendor === "deepseek") {
+    return generateWithDeepSeek(input);
+  }
+
   return null;
 }
 
@@ -148,5 +224,7 @@ export function providerAvailability() {
     openai: Boolean(getVendorApiKey("openai")),
     anthropic: Boolean(getVendorApiKey("anthropic")),
     google: Boolean(getVendorApiKey("google")),
+    xai: Boolean(getVendorApiKey("xai")),
+    deepseek: Boolean(getVendorApiKey("deepseek")),
   };
 }

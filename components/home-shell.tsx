@@ -27,6 +27,8 @@ export function HomeShell() {
     openai: Boolean(process.env.NEXT_PUBLIC_OPENAI_READY),
     anthropic: Boolean(process.env.NEXT_PUBLIC_ANTHROPIC_READY),
     google: Boolean(process.env.NEXT_PUBLIC_GOOGLE_READY),
+    xai: Boolean(process.env.NEXT_PUBLIC_XAI_READY),
+    deepseek: Boolean(process.env.NEXT_PUBLIC_DEEPSEEK_READY),
   }));
 
   const orchestrators = useMemo(
@@ -146,6 +148,8 @@ export function HomeShell() {
               <span className={providerStatus.openai ? "tag-chip tag-chip-live" : "tag-chip"}>OpenAI</span>
               <span className={providerStatus.anthropic ? "tag-chip tag-chip-live" : "tag-chip"}>Anthropic</span>
               <span className={providerStatus.google ? "tag-chip tag-chip-live" : "tag-chip"}>Google</span>
+              <span className={providerStatus.xai ? "tag-chip tag-chip-live" : "tag-chip"}>xAI</span>
+              <span className={providerStatus.deepseek ? "tag-chip tag-chip-live" : "tag-chip"}>DeepSeek</span>
             </div>
             <p className="field-help">키가 없으면 mock 응답으로 fallback 된다.</p>
           </section>

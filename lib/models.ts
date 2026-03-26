@@ -1,7 +1,7 @@
 export type SupportedModel = {
   id: string;
   label: string;
-  vendor: "openai" | "anthropic" | "google" | "mock";
+  vendor: "openai" | "anthropic" | "google" | "xai" | "deepseek" | "mock";
   kind: "orchestrator" | "participant" | "both";
   providerModel: string;
 };
@@ -24,6 +24,16 @@ export const SUPPORTED_MODELS: SupportedModel[] = [
     providerModel: "claude-opus-4-5",
   },
   { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", vendor: "google", kind: "both", providerModel: "gemini-2.5-pro" },
+  { id: "grok-3", label: "Grok 3", vendor: "xai", kind: "both", providerModel: "grok-3" },
+  { id: "grok-3-fast", label: "Grok 3 Fast", vendor: "xai", kind: "both", providerModel: "grok-3-fast" },
+  { id: "deepseek-chat", label: "DeepSeek Chat", vendor: "deepseek", kind: "both", providerModel: "deepseek-chat" },
+  {
+    id: "deepseek-reasoner",
+    label: "DeepSeek Reasoner",
+    vendor: "deepseek",
+    kind: "both",
+    providerModel: "deepseek-reasoner",
+  },
   {
     id: "mock-ringmaster",
     label: "Mock Ringmaster",
