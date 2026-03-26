@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { VIEWER_COOKIE, createViewerId } from "@/lib/auth";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.cookies.get(VIEWER_COOKIE)) {
     return NextResponse.next();
   }
